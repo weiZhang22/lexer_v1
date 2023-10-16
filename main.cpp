@@ -1,10 +1,10 @@
 #include <iostream>
 
-// 引入目的：将源代码读进input_string，即字符流.
+//读入字符流
 #include <fstream>
 #include <sstream>
 
-// 引入目的：使用智能指针.
+//智能指针
 #include <memory>
 
 // 引入目的：构建符号表.
@@ -12,7 +12,7 @@
 
 //
 #include <cstring>
-#include <vector>
+#include <vector>  //每次扩容百分之五十
 
 // 运算符、表达式、变量等的类型(其中，除Type_array外，皆是基础类型，即base-type, 或builtin-type).
 typedef enum Type {
@@ -119,7 +119,7 @@ private:
     // 字符流指针.
     long pos = 0;
 
-    int lineNo = 1;
+    int lineNo = 0;
     int columnNo = 0;
 
     // 读取当前字符，并将指针指向下一个字符.
@@ -148,48 +148,45 @@ public:
 // getNextToken - 读取字符流(input_string)直至分析出一个token，并将此token返回.
 TOKEN Lexer::getNextToken() {
     char CurrentChar = getChar();
+    char NextChar;
     // 忽略空白.
     while (isspace(CurrentChar)) {
         if (CurrentChar == '\n') {
             lineNo++;
-            columnNo = 1;
+            columnNo = 0;
         }
         CurrentChar = getChar();
     }
 
     // 忽略注释.
-    while (CurrentChar == '/') {                     // '/'可能是除运算符，也可能是行注释的开头
+    while (CurrentChar == '/') {// '/'可能是除运算符，也可能是行注释的开头
 
         if ((CurrentChar = getChar()) == '/') {       // 行注释
             while ((CurrentChar = getChar()) != '\n' && input_string.length() >= pos) //continue 意味着继续分析
                 continue;
         } else if (CurrentChar == '*') {         // 块注释
             if ((CurrentChar = getChar()) == '/') {
-                print_line(lineNo, columnNo - 2, "missing '*' before '/'");
+                print_line(lineNo, columnNo - 1, "missing '*' before '/'");
                 exit(1);
-            }
-            while (CurrentChar != '*') {
-                if (input_string.length() <= pos) {
-                    print_line(lineNo, columnNo - 3, "missing '*' ");
-                    exit(1);
+            } else{
+                while(input_string.length() > pos && (!(CurrentChar == '*' & (NextChar = getChar()) =='/'))){
+                    if (CurrentChar == '\n' ){
+                        lineNo++;
+                        columnNo = 0;
+                    }
+                    CurrentChar = NextChar;
                 }
-                if (CurrentChar == '\n') {
-                    lineNo++;
-                    columnNo = 1;
-                }
-                CurrentChar = getChar();
-            }
+                if (CurrentChar == '*' && NextChar =='/'){
+                    CurrentChar = getChar();
+                } else{
 
-            while (!(CurrentChar == '*' && getChar() == '/')) {
-                if(CurrentChar != '*'){
-                    put_backChar();
-                }
-                if (input_string.length() <= pos) {
-                    print_line(lineNo, columnNo - 3, "missing '/' or ");
+                    print_line(lineNo, columnNo -2, "缺少注释结尾 missing '*/'");
                     exit(1);
                 }
-                CurrentChar =getChar();
             }
+        } else{
+            print_line(lineNo, columnNo - 1, "missing '/' or '*'");
+            exit(1);
         }
 
 
@@ -208,7 +205,6 @@ TOKEN Lexer::getNextToken() {
 //            print_line(lineNo, columnNo - 3, "missing '*' or '/'");
 //            exit(1);
 //        }
-        CurrentChar = getChar();
         // 忽略注释后的空白符.
         while (isspace(CurrentChar)) {
             if (CurrentChar == '\n' || CurrentChar == '\r') {
@@ -218,6 +214,7 @@ TOKEN Lexer::getNextToken() {
             CurrentChar = getChar();
         }
     }
+
     // 整数或浮点数
     if (isdigit(CurrentChar) || CurrentChar == '.') { // 有可能是数值
         std::string NumberString;
@@ -497,13 +494,11 @@ int main(int argc, char *argv[]) {
     }
 
 
-
 // 词法分析.
-Lexer lexer;
+    Lexer lexer;
     // 打印所有的tokens
     for (auto &currentToken: lexer.constructTokenStream()) {
         //if()
-        fprintf(stderr, "%s : type %d\n", currentToken.lexeme.c_str(),currentToken.type);
+        fprintf(stderr, "%s : type %d\n", currentToken.lexeme.c_str(), currentToken.type);
     }
 }
-
