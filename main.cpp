@@ -51,7 +51,7 @@ static void print_line(int line_no, int column_no, const std::string &msg) {
 // Lexer
 //===----------------------------------------------------------------------===//
 
-// 用不同的整数值表示token的不同类型.
+// 用不同的整数值表示token的不同类型;枚举类型
 typedef enum TOKEN_TYPE {
     TK_INT_LITERAL,                  // [0-9]+
     TK_FLOAT_LITERAL,                // [0-9]+.[0-9]+
@@ -74,6 +74,7 @@ typedef enum TOKEN_TYPE {
     TK_CONTINUE,                     // continue
     TK_PRINT,                        // print
 
+    //logical operators
     TK_PLUS,                         // "+"
     TK_MINUS,                        // "-"
     TK_MULorDEREF,                   // "*"
@@ -112,7 +113,6 @@ struct TOKEN {
     int lineNo = -1;
     int columnNo = -1;
 };
-
 
 class Lexer {
 private:
@@ -158,38 +158,57 @@ TOKEN Lexer::getNextToken() {
     }
 
     // 忽略注释.
-    while (CurrentChar == '/') { // '/'可能是除运算符，也可能是行注释的开头
-        if ((CurrentChar = getChar()) == '/') {       // 是行注释
-            while ((CurrentChar = getChar()) != '\n' && input_string.length() >= pos)
+    while (CurrentChar == '/') {                     // '/'可能是除运算符，也可能是行注释的开头
+
+        if ((CurrentChar = getChar()) == '/') {       // 行注释
+            while ((CurrentChar = getChar()) != '\n' && input_string.length() >= pos) //continue 意味着继续分析
                 continue;
-        } else if (CurrentChar == '*') {              // 是块注释
+        } else if (CurrentChar == '*') {         // 块注释
             if ((CurrentChar = getChar()) == '/') {
                 print_line(lineNo, columnNo - 2, "missing '*' before '/'");
                 exit(1);
             }
-            while (CurrentChar != '/') {
+            while (CurrentChar != '*') {
+                if (input_string.length() <= pos) {
+                    print_line(lineNo, columnNo - 3, "missing '*' ");
+                    exit(1);
+                }
                 if (CurrentChar == '\n') {
                     lineNo++;
                     columnNo = 1;
                 }
                 CurrentChar = getChar();
             }
-            if (CurrentChar == '/') {
-                put_backChar();
-                put_backChar();
-                if ((CurrentChar = getChar()) != '*') {
-                    print_line(lineNo, columnNo - 2, "missing '*' before '/'");
-                    exit(1);
-                } else {
-                    getChar();
-                    CurrentChar = getChar();
+
+            while (!(CurrentChar == '*' && getChar() == '/')) {
+                if(CurrentChar != '*'){
+                    put_backChar();
                 }
+                if (input_string.length() <= pos) {
+                    print_line(lineNo, columnNo - 3, "missing '/' or ");
+                    exit(1);
+                }
+                CurrentChar =getChar();
             }
-        } else {
-            print_line(lineNo, columnNo - 3, "missing '*' or '/'");
-            exit(1);
         }
 
+
+//                put_backChar();
+//                if ((CurrentChar = getChar()) != '/') {
+//                    print_line(lineNo, columnNo - 2, "missing '*' before '/'");
+//                    exit(1);
+//                      CurrentChar = getChar();
+
+//                } else {
+//                    getChar();
+//                    CurrentChar = getChar();
+//                }
+//            }
+//        } else {
+//            print_line(lineNo, columnNo - 3, "missing '*' or '/'");
+//            exit(1);
+//        }
+        CurrentChar = getChar();
         // 忽略注释后的空白符.
         while (isspace(CurrentChar)) {
             if (CurrentChar == '\n' || CurrentChar == '\r') {
@@ -199,12 +218,11 @@ TOKEN Lexer::getNextToken() {
             CurrentChar = getChar();
         }
     }
-
     // 整数或浮点数
     if (isdigit(CurrentChar) || CurrentChar == '.') { // 有可能是数值
         std::string NumberString;
 
-        if (CurrentChar == '.') { // 浮点数: .[0-9]+
+        if (CurrentChar == '.') {                 // 浮点数: .[0-9]+
             do {
                 NumberString += CurrentChar;
                 CurrentChar = getChar();
@@ -217,14 +235,22 @@ TOKEN Lexer::getNextToken() {
                 CurrentChar = getChar();
             } while (isdigit(CurrentChar));
 
-            if (CurrentChar == '.') { // 若出现小数点，是浮点数: [0-9]+.[0-9]+
-                do {
-                    NumberString += CurrentChar;
-                    CurrentChar = getChar();
-                } while (isdigit(CurrentChar));
-                put_backChar();
-                return TOKEN{TK_FLOAT_LITERAL, NumberString, lineNo, columnNo};
-            } else {                  // 若未出现小数点，是整数: [0-9]+
+            if (CurrentChar == '.' ) {
+                if (isdigit(getChar())){
+                    put_backChar();
+                    // 若出现小数点，是浮点数: [0-9]+.[0-9]+
+                    do {
+                        NumberString += CurrentChar;
+                        CurrentChar = getChar();
+                    } while (isdigit(CurrentChar));
+                    put_backChar();
+                    return TOKEN{TK_FLOAT_LITERAL, NumberString, lineNo, columnNo};
+                }else{
+                    print_line(lineNo , columnNo - 1, "数值格式错误，小数点后不是数字");
+                    exit(1);
+                }
+
+            }else{                  // 若未出现小数点，是整数: [0-9]+
                 put_backChar();
                 return TOKEN{TK_INT_LITERAL, NumberString, lineNo, columnNo};
             }
@@ -255,7 +281,7 @@ TOKEN Lexer::getNextToken() {
             return TOKEN{TK_BOOL_LITERAL, IdentifierString, lineNo, columnNo};
         if (IdentifierString == "return")
             return TOKEN{TK_RETURN, IdentifierString, lineNo, columnNo};
-        if (IdentifierString == "if" || IdentifierString == "if")
+        if (IdentifierString == "if" )
             return TOKEN{TK_IF, IdentifierString, lineNo, columnNo};
         if (IdentifierString == "else")
             return TOKEN{TK_ELSE, IdentifierString, lineNo, columnNo};
@@ -378,7 +404,7 @@ TOKEN Lexer::getNextToken() {
             std::string s(1, CurrentChar);
             return TOKEN{TK_SEMICOLON, s, lineNo, columnNo};
         }
-        case '\'': {// char character ref. https://github.com/rui314/chibicc/blob/aa0accc75e9358d313fef0a6d4005103e2ce25f5/tokenize.c
+        case '\'': {                                                                        // char character ref. https://github.com/rui314/chibicc/blob/aa0accc75e9358d313fef0a6d4005103e2ce25f5/tokenize.c
             if ((CurrentChar = getChar()) == '\0')
                 print_line(lineNo, columnNo, "unclosed char literal");
             char c;
@@ -439,6 +465,11 @@ std::vector<TOKEN> Lexer::constructTokenStream() {
     return std::move(tokenList);
 }
 
+
+
+
+
+
 int main(int argc, char *argv[]) {
     if (argc == 2) {
         /* source code can be read from one of two places:
@@ -446,9 +477,11 @@ int main(int argc, char *argv[]) {
          *    This approach is convenient for testing a large number of cases
          *    by running "make test" command.
          * 2. a file. This approach is convenient for debugging a single test case.
-         * */
+        */
         // for convenience, source code will be read into a string
         // ref: https://www.zhihu.com/question/426117879/answer/2618969836?utm_source=qq&utm_medium=social&utm_oi=867698515231522816
+
+
         std::ostringstream out;  // this var is auxiliary
         if (strcmp(argv[1], "-") == 0) {  // "-" is exactly the string in argv[1]
             out << std::cin.rdbuf();
@@ -463,11 +496,14 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
+
+
 // 词法分析.
 Lexer lexer;
     // 打印所有的tokens
     for (auto &currentToken: lexer.constructTokenStream()) {
-        fprintf(stderr, "%s : type %d\n", currentToken.lexeme.c_str(),
-                currentToken.type);
+        //if()
+        fprintf(stderr, "%s : type %d\n", currentToken.lexeme.c_str(),currentToken.type);
     }
 }
+
