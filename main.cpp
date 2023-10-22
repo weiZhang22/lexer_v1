@@ -179,8 +179,7 @@ TOKEN Lexer::getNextToken() {
                 if (CurrentChar == '*' && NextChar =='/'){
                     CurrentChar = getChar();
                 } else{
-
-                    print_line(lineNo, columnNo -2, "缺少注释结尾 missing '*/'");
+                    print_line(lineNo, columnNo , " missing '*/'");
                     exit(1);
                 }
             }
@@ -246,7 +245,6 @@ TOKEN Lexer::getNextToken() {
                     print_line(lineNo , columnNo - 1, "数值格式错误，小数点后不是数字");
                     exit(1);
                 }
-
             }else{                  // 若未出现小数点，是整数: [0-9]+
                 put_backChar();
                 return TOKEN{TK_INT_LITERAL, NumberString, lineNo, columnNo};
