@@ -456,8 +456,9 @@ std::vector<TOKEN> Lexer::constructTokenStream() {
     do {
         currentToken = getNextToken();
         tokenList.push_back(currentToken);
+
     } while (currentToken.type != TK_EOF);
-    return std::move(tokenList);
+    return tokenList;
 }
 
 
@@ -496,7 +497,16 @@ int main(int argc, char *argv[]) {
     Lexer lexer;
     // 打印所有的tokens
     for (auto &currentToken: lexer.constructTokenStream()) {
-        //if()
-        fprintf(stderr, "%s : type %d\n", currentToken.lexeme.c_str(), currentToken.type);
+        //if(currentToken.type == 5){
+            fprintf(stderr, "%s : type %d\n", currentToken.lexeme.c_str(), currentToken.type);
+        //}
     }
+    std::ofstream outfile;
+    outfile.open("token.txt");
+    for(int i=0;i < lexer.tokenList.size();i++){
+        outfile << i << "  " <<lexer.tokenList[i].lexeme + " : "<<"type"<< lexer.tokenList[i].type<< std::endl;
+    }
+
+
+
 }
