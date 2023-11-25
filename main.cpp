@@ -2227,5 +2227,12 @@ int main(int argc, char *argv[]) {
     std::shared_ptr<AST_Node> tree = parser.parse();
     int a = 0;
 
-
+    // 语义分析.
+    SemanticAnalyzer semantic_analyzer;
+    semantic_analyzer.analyze(*tree);
+    //
+    //    // 代码生成.
+    ////    print_it = true;
+    //    CodeGenerator code_generator;
+    //    code_generator.code_generate(*tree);
 }
